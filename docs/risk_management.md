@@ -1,53 +1,9 @@
-# Sauda E-Commerce Engine - UML Class Diagram
+# Risk Management Plan
 
-```mermaid
-classDiagram
-    %% Models
-    class User {
-        +String id
-        +String username
-        +String role
-    }
-    class Order {
-        +String id
-        +String status
-        +Number totalAmount
-        +attach(observer)
-        +notify()
-    }
-    
-    %% Factory Pattern
-    class Invoice {
-        <<interface>>
-        +generate(order)
-    }
-    class PDFInvoice { +generate(order) }
-    class HTMLInvoice { +generate(order) }
-    class InvoiceFactory {
-        +createInvoice(type)
-    }
-    Invoice <|-- PDFInvoice
-    Invoice <|-- HTMLInvoice
-    InvoiceFactory ..> Invoice
-    
-    %% Adapter Pattern
-    class PaymentGateway {
-        <<interface>>
-        +pay(amount)
-    }
-    class StripeAdapter { +pay(amount) }
-    class PayPalAdapter { +pay(amount) }
-    PaymentGateway <|-- StripeAdapter
-    PaymentGateway <|-- PayPalAdapter
-    
-    %% Observer Pattern
-    class OrderObserver {
-        <<interface>>
-        +update(data)
-    }
-    class EmailNotifier { +update(data) }
-    class SMSNotifier { +update(data) }
-    Order "1" o-- "*" OrderObserver : notifies
-    OrderObserver <|-- EmailNotifier
-    OrderObserver <|-- SMSNotifier
-```
+| Risk ID | Risk Description | Category | Impact | Likelihood | Mitigation Strategy |
+|---------|------------------|----------|--------|------------|---------------------|
+| R001 | Scope Creep (Adding too many features) | Management | High | Medium | Strictly follow the MVP roadmap defined in the Charter. |
+| R002 | Technical Debt (Rushed coding) | Technical | Medium | High | Bi-weekly code reviews and strict ESLint/Linting checks. |
+| R003 | Security Vulnerabilities | Technical | Critical | Low | Implement robust Auth and use backend field validation. |
+| R004 | API Integration Failure | Technical | High | Medium | Use Adapter patterns to mock or switch between API versions. |
+| R005 | Deadline Pressure | Management | Medium | High | Use Agile sprints and prioritize "Critical Path" tasks. |
