@@ -6,6 +6,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import { InvoiceFactory } from './src/server/patterns/creational/invoice_factory.js';
+import { getPaymentGateway } from './src/server/patterns/structural/payment_adapter.js';
+import { SaudaOrderSubject, EmailNotifier, SMSNotifier, LogNotifier } from './src/server/patterns/behavioral/order_observer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'sauda-engine-super-secret-key';
@@ -231,7 +234,7 @@ async function startServer() {
     });
   });
 
-  app.post('/api/orders', authenticate, (req: any, res) => {
+  app.post('/api/orders', authenticate, async (req: any, res) => {
     const { items, totalAmount, paymentMethod } = req.body;
     // Multi-seller logic: simplify to first seller in items for now, or just handle multiple
     const sellerId = items?.[0]?.sellerId || '2';
@@ -247,6 +250,23 @@ async function startServer() {
       createdAt: new Date().toISOString()
     };
     orders.push(order);
+
+    // [PATTERN] Behavioral: Observer (Notify stakeholders of new order)
+    const orderSubject = new SaudaOrderSubject(order.id, req.user.email, 'pending');
+    orderSubject.attach(new EmailNotifier());
+    orderSubject.attach(new SMSNotifier());
+    orderSubject.attach(new LogNotifier());
+    orderSubject.notify();
+
+    // [PATTERN] Structural: Adapter (Process payment via selected gateway)
+    try {
+      const gateway = getPaymentGateway(paymentMethod || 'stripe');
+      const result = await gateway.pay(totalAmount, 'USD');
+      console.log(`[PAYMENT ADAPTER] Result:`, result);
+    } catch (err) {
+      console.error(`[PAYMENT ADAPTER] Integration Error:`, err);
+    }
+
     res.json(order);
   });
 
@@ -303,6 +323,16 @@ async function startServer() {
     }
 
     order.status = status;
+
+    // [PATTERN] Behavioral: Observer (Notify of status change)
+    const user = users.find(u => u.id === order.customerId);
+    if (user) {
+      const orderSubject = new SaudaOrderSubject(order.id, user.email, status);
+      orderSubject.attach(new EmailNotifier());
+      orderSubject.attach(new LogNotifier());
+      orderSubject.notify();
+    }
+
     res.json(order);
   });
 
@@ -320,35 +350,31 @@ async function startServer() {
   });
 
   app.post('/api/seller/invoices/:orderId', authenticate, authorize(['seller']), (req: any, res) => {
+    const { format = 'json' } = req.query;
     const order = orders.find(o => o.id === req.params.orderId && o.sellerId === req.user.id);
     if (!order) return res.status(404).json({ error: 'Order not found or access denied' });
 
-    const invoice = {
-      invoiceId: `INV-${order.id}-${Date.now()}`,
-      orderId: order.id,
-      buyer: {
-        id: order.customerId,
-        name: order.buyerName || 'Valued Customer'
-      },
-      seller: {
-        id: order.sellerId,
-        name: req.user.username || 'Merchant Node'
-      },
-      items: order.items.map((item: any) => ({
-        productId: item.id,
-        productName: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.price * item.quantity
-      })),
-      subtotal: order.totalAmount,
-      total: order.totalAmount,
-      currency: 'USD',
-      createdAt: new Date().toISOString(),
-      status: 'ISSUED'
-    };
+    // [PATTERN] Creational: Factory Method (Generate specific document format)
+    try {
+      const factory = InvoiceFactory.createInvoice(format as any);
+      const documentRaw = factory.generate(order);
+      
+      const invoiceData = {
+        invoiceId: `INV-${order.id}-${Date.now()}`,
+        orderId: order.id,
+        format,
+        content: documentRaw,
+        buyer: { id: order.customerId, name: order.buyerName || 'Valued Customer' },
+        seller: { id: order.sellerId, name: req.user.username || 'Merchant Node' },
+        items: order.items,
+        total: order.totalAmount,
+        createdAt: new Date().toISOString()
+      };
 
-    res.json(invoice);
+      res.json(invoiceData);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
   });
 
   // --- ADMIN ---
