@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Theme Colors */
+  --color-primary: #0F172A;
+  --color-accent: #6366F1;
+  --color-success: #10B981;
+  
+  /* Glassmorphism Variables */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(10px);
+}
+
+@layer base {
+  body {
+    @apply bg-primary text-slate-100 antialiased selection:bg-accent/30;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-[10px] border border-white/10 rounded-2xl shadow-2xl;
+  }
+
+  .glass-card-dark {
+    @apply bg-black/40 backdrop-blur-[12px] border border-white/5 rounded-2xl shadow-2xl;
+  }
+
+  .btn-primary {
+    @apply px-6 py-2.5 bg-accent text-white font-medium rounded-xl transition-all duration-300
+           hover:bg-accent/90 hover:scale-[1.02] active:scale-[0.98] focus:ring-2 focus:ring-accent/50 outline-none;
+  }
+
+  .input-glass {
+    @apply w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:border-accent/50 focus:ring-2 focus:ring-accent/20 outline-none transition-all;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+}
