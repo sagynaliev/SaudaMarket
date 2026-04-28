@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CreditCard, Truck, ShieldCheck, CheckCircle, ChevronRight, Lock, MapPin, Globe, Loader2, ArrowLeft } from 'lucide-react';
+import { CreditCard, Truck, ShieldCheck, CheckCircle, ChevronRight, Lock, MapPin, Globe, Loader2, ArrowLeft, Tag, Check } from 'lucide-react';
 import { GlassCard, Badge } from './ui/Common';
 import { CartItem } from '../types';
 import { api } from '../services/api';
 import { cn } from '../lib/utils';
+import { resolvePricingStrategy, PricingEngine } from '../server/patterns/behavioral/pricing_strategy';
+import { CurrencyAdapterFactory } from '../server/patterns/structural/currency_adapter';
+
+import { APP_CONFIG } from '../constants';
 
 interface CheckoutProps {
   items: CartItem[];
@@ -14,6 +18,11 @@ interface CheckoutProps {
 export function Checkout({ items, onComplete }: CheckoutProps) {
   const [step, setStep] = useState<'details' | 'payment' | 'processing'>('details');
   const [isLoading, setIsLoading] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [isInvalidPromo, setIsInvalidPromo] = useState(false);
+  const [currency, setCurrency] = useState<'USD' | 'KZT' | 'EUR'>('USD');
+  
   const [formData, setFormData] = useState({
     address: '',
     city: '',
@@ -25,8 +34,31 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
   });
 
   const total = items.reduce((a, b) => a + (b.price * b.quantity), 0);
+  
+  // Strategy Pattern (Pricing)
+  const strategy = resolvePricingStrategy(appliedPromo || undefined, items.reduce((s, i) => s + i.quantity, 0));
+  const engine = new PricingEngine(strategy);
+  const calculation = engine.computeTotal(total, 1);
+
+  // Adapter Pattern (Currency)
+  const currencyAdapter = CurrencyAdapterFactory.getAdapter(currency);
+  const formatPrice = (price: number) => {
+    return `${currencyAdapter.getSymbol()}${currencyAdapter.convert(price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const shipping = total > 500 ? 0 : 25;
-  const grandTotal = total + shipping;
+  const grandTotal = calculation.total + shipping;
+
+  const handleApplyPromo = () => {
+    const validCodes = ['VIP15', 'BULK10', 'SALE25'];
+    if (validCodes.includes(promoCode)) {
+      setAppliedPromo(promoCode);
+      setIsInvalidPromo(false);
+    } else {
+      setIsInvalidPromo(true);
+      setTimeout(() => setIsInvalidPromo(false), 500);
+    }
+  };
 
   const handleProcessOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +82,8 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
         })),
         totalAmount: grandTotal,
         paymentMethod: 'stripe',
+        appliedPromo: appliedPromo,
+        currency: currency,
         shippingAddress: `${formData.address}, ${formData.city}, ${formData.zip}`
       };
 
@@ -59,9 +93,10 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       onComplete();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Order synchronization failure. Retrying sequence...');
+      // Instead of alert, use the step state to show error if we had one, 
+      // but for now let's just log and revert step to payment
       setStep('payment');
     } finally {
       setIsLoading(false);
@@ -82,7 +117,7 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
     <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Order Protocol</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">{APP_CONFIG.NAME} Protocol</h1>
             <p className="text-slate-400 mt-1">Reviewing transaction manifest and security credentials.</p>
          </div>
       </div>
@@ -242,7 +277,7 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
                    ) : (
                      <>
                         <span className="font-bold tracking-widest uppercase">
-                          {step === 'details' ? 'CONTINUE TO PAYMENT' : `AUTHORIZE TRANSACTION ($${grandTotal.toFixed(2)})`}
+                          {step === 'details' ? 'CONTINUE TO PAYMENT' : `AUTHORIZE TRANSACTION (${formatPrice(grandTotal)})`}
                         </span>
                         <ChevronRight className="group-hover:translate-x-1 transition-transform" />
                      </>
@@ -255,30 +290,116 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
         <div className="space-y-8">
            <GlassCard variant="dark" className="p-8 border-accent/20">
               <h3 className="font-bold mb-6 text-sm uppercase tracking-widest text-slate-500">Manifest Summary</h3>
+
+              {/* Currency Selector (Adapter Pattern) */}
+              <div className="mb-6 pb-6 border-b border-white/5">
+                 <div className="flex items-center justify-between mb-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                       <Globe size={12} /> Currency Node
+                    </label>
+                 </div>
+                 <div className="grid grid-cols-3 gap-2">
+                    {(['KZT', 'USD', 'EUR'] as const).map((curr) => (
+                       <button
+                          key={curr}
+                          type="button"
+                          onClick={() => setCurrency(curr)}
+                          className={`py-2 rounded-xl text-[10px] font-bold transition-all border ${
+                             currency === curr 
+                                ? 'bg-accent/20 border-accent text-accent' 
+                                : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'
+                          }`}
+                       >
+                          {curr}
+                       </button>
+                    ))}
+                 </div>
+              </div>
+
+              {/* Promo Code (Strategy Pattern) */}
+              <div className="mb-6 pb-6 border-b border-white/5">
+                 <div className="flex items-center justify-between mb-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                       <Tag size={12} /> Discount Protocol
+                    </label>
+                    {appliedPromo && (
+                       <button 
+                         type="button"
+                         onClick={() => setAppliedPromo(null)}
+                         className="text-[10px] text-rose-500 font-bold hover:underline"
+                       >
+                          Clear
+                       </button>
+                    )}
+                 </div>
+                 <div className="flex gap-2">
+                    <motion.div 
+                      animate={isInvalidPromo ? { x: [-5, 5, -5, 5, 0] } : {}}
+                      className="flex-1"
+                    >
+                       <input 
+                          type="text" 
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          placeholder="ENTER CODE"
+                          className="w-full h-10 bg-white/5 border border-white/10 rounded-xl px-4 text-[10px] font-bold placeholder:text-slate-600 focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                       />
+                    </motion.div>
+                    <button 
+                       type="button"
+                       onClick={handleApplyPromo}
+                       className="h-10 w-10 flex items-center justify-center bg-white text-primary rounded-xl hover:bg-accent hover:text-white transition-all shadow-xl active:scale-95"
+                    >
+                       <Check size={16} />
+                    </button>
+                 </div>
+                 {appliedPromo && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2"
+                    >
+                       <Check size={12} className="text-emerald-500" />
+                       <p className="text-[9px] font-bold text-emerald-500 uppercase">{calculation.strategyName} Applied</p>
+                    </motion.div>
+                 )}
+              </div>
+
               <div className="space-y-4 mb-8">
                  {items.map(item => (
-                   <div key={item.id} className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                         <p className="text-sm font-medium text-white line-clamp-1">{item.name}</p>
-                         <p className="text-xs text-slate-500 mt-0.5">{item.quantity} x ${item.price.toFixed(2)}</p>
-                      </div>
-                      <p className="text-sm font-bold text-slate-200">${(item.price * item.quantity).toFixed(2)}</p>
-                   </div>
+                    <div key={item.id} className="flex justify-between items-start gap-4">
+                       <div className="flex-1">
+                          <p className="text-sm font-medium text-white line-clamp-1">{item.name}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{item.quantity} x {formatPrice(item.price)}</p>
+                       </div>
+                       <p className="text-sm font-bold text-slate-200">{formatPrice(item.price * item.quantity)}</p>
+                    </div>
                  ))}
               </div>
               <div className="space-y-3 pt-6 border-t border-white/10">
                  <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Asset Value</span>
-                    <span className="text-slate-300 font-bold">${total.toFixed(2)}</span>
+                    <span className="text-slate-300 font-bold">{formatPrice(total)}</span>
                  </div>
+                 {calculation.savings > 0 && (
+                    <div className="flex justify-between text-sm text-accent">
+                       <span className="font-bold">Strategy Applied</span>
+                       <span className="font-bold">-{formatPrice(calculation.savings)}</span>
+                    </div>
+                 )}
                  <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Logistics Fee</span>
-                    <span className="text-slate-300 font-bold">${shipping.toFixed(2)}</span>
+                    <span className="text-slate-300 font-bold">{formatPrice(shipping)}</span>
                  </div>
                  <div className="flex justify-between text-lg pt-3 border-t border-white/10">
                     <span className="font-bold">Total Payable</span>
-                    <span className="font-bold text-accent">${grandTotal.toFixed(2)}</span>
+                    <span className="font-bold text-accent">{formatPrice(grandTotal)}</span>
                  </div>
+                 {calculation.savings > 0 && (
+                    <p className="text-[10px] text-accent font-bold text-right uppercase tracking-widest mt-1">
+                       You save {formatPrice(calculation.savings)}
+                    </p>
+                 )}
               </div>
            </GlassCard>
 

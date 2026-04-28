@@ -161,5 +161,8 @@ export const api = {
         body: JSON.stringify(data)
       });
     }
+  },
+  search: {
+    global: async (query: string) => fetcher(`/search?q=${encodeURIComponent(query)}`)
   }
 };

@@ -122,7 +122,7 @@ export function TopNav({ username, role, onProfileClick, onNotificationsClick, o
         >
            <Bell size={18} className="text-slate-300 group-hover:scale-110 transition-transform" />
            {hasUnreadNotifications && (
-             <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-accent rounded-full ring-4 ring-primary animate-pulse"></span>
+             <span className="absolute top-2 right-2 w-3 h-3 bg-accent rounded-full border-2 border-primary shadow-[0_0_10px_rgba(99,102,241,0.5)] animate-pulse"></span>
            )}
         </button>
         

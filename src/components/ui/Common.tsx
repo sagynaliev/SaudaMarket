@@ -11,10 +11,6 @@ interface GlassCardProps extends HTMLMotionProps<'div'> {
 export function GlassCard({ children, className, variant = 'light', ...props }: GlassCardProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.4 }}
       className={cn(
         variant === 'light' ? 'glass-card' : 'glass-card-dark',
         'p-6 overflow-hidden',

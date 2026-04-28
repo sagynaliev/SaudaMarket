@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Info, Shield, Scaling, ListChecks, ArrowRight } from 'lucide-react';
+import { X, Info, Shield, Scaling, ListChecks, ArrowRight, Star, User } from 'lucide-react';
 import { GlassCard } from './ui/Common';
 
 interface SpecsModalProps {
@@ -103,6 +103,49 @@ export function SpecsModal({ isOpen, onClose, product }: SpecsModalProps) {
                <div className="p-6 rounded-3xl bg-indigo-500/5 border border-indigo-500/10">
                   <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Extended Protocol Info</p>
                   <p className="text-sm text-slate-400 leading-relaxed">{specs.additionalInfo}</p>
+               </div>
+
+               {/* Reviews Section */}
+               <div className="space-y-6 pt-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <Star size={14} className="text-amber-500" /> Customer Feedback Ledger
+                     </p>
+                     <div className="flex items-center gap-1">
+                        <span className="text-xl font-bold">{product.rating?.toFixed(1) || '0.0'}</span>
+                        <Star size={14} fill="#f59e0b" className="text-amber-500" />
+                     </div>
+                  </div>
+
+                  <div className="space-y-4 pb-4">
+                     {product.reviews && product.reviews.length > 0 ? (
+                       product.reviews.map((review: any) => (
+                          <div key={review.id} className="p-5 rounded-3xl bg-white/5 border border-white/5 space-y-3">
+                             <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                   <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent">
+                                      <User size={16} />
+                                   </div>
+                                   <div>
+                                      <p className="text-sm font-bold">{review.username}</p>
+                                      <p className="text-[9px] text-slate-500 uppercase tracking-tighter">{new Date(review.createdAt).toLocaleDateString()}</p>
+                                   </div>
+                                </div>
+                                <div className="flex gap-0.5">
+                                   {[1, 2, 3, 4, 5].map(s => (
+                                      <Star key={s} size={10} fill={s <= review.rating ? '#f59e0b' : 'none'} className={s <= review.rating ? "text-amber-500" : "text-slate-700"} />
+                                   ))}
+                                </div>
+                             </div>
+                             <p className="text-sm text-slate-300 leading-relaxed italic">"{review.comment}"</p>
+                          </div>
+                       ))
+                     ) : (
+                       <div className="py-10 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
+                          <p className="text-xs text-slate-500 font-mono">NO FEEDBACK NODES DETECTED IN CURRENT SECTOR.</p>
+                       </div>
+                     )}
+                  </div>
                </div>
             </div>
 

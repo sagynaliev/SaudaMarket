@@ -1,35 +1,42 @@
 # Work Breakdown Structure (WBS) & Timeline
+## Sauda Digital Commerce Infrastructure
 
-## 1. WBS Tree
-```mermaid
-graph TD
-    A[Sauda Project] --> B[Phase 1: Foundation]
-    A --> C[Phase 2: Core Features]
-    A --> D[Phase 3: Architecture & Security]
-    
-    B --> B1[Project Setup & Architecture]
-    B --> B2[Auth Infrastructure]
-    
-    C --> C1[Customer Portal]
-    C --> C2[Seller Dashboard]
-    C --> C3[Admin Control Panel]
-    
-    D --> D1[Implement Design Patterns]
-    D --> D2[Final Testing & QA]
-```
+### 1. Work Breakdown Structure (WBS)
+- **1.0 Management Cluster**
+  - 1.1 Project Charter & Scope Definition
+  - 1.2 Risk Management Matrix
+  - 1.3 Post-Mortem Analysis
+- **2.0 Architectural Backbone (Design Patterns)**
+  - 2.1 Creational Layer (Factory, Singleton)
+  - 2.2 Structural Layer (Adapter, Decorator)
+  - 2.3 Behavioral Layer (Observer, Strategy, Command)
+- **3.0 Frontend Infrastructure**
+  - 3.1 Customer Portal (Catalog, Tracking, Comparison)
+  - 3.2 Seller Panel (Inventory, Invoice synthesis)
+  - 3.3 Admin Panel (Analytics & Approvals)
+- **4.0 Server-Side Orchestration**
+  - 4.1 Order Processing (Observer-driven)
+  - 4.2 Dynamic Pricing Logic (Strategy-driven)
+  - 4.3 Payment Adapters
 
-## 2. Timeline (Gantt Chart)
+### 2. Timeline (Gantt Chart)
 ```mermaid
 gantt
-    title Sauda Project Timeline
+    title Sauda Project Execution Roadmap
     dateFormat  YYYY-MM-DD
-    section Management
-    Charter & WBS           :done,    des1, 2026-04-10, 2d
-    Risk Matrix             :done,    des2, 2026-04-12, 1d
-    section Development
-    Auth System             :active,  dev1, 2026-04-13, 5d
-    Core Commerce Engine    :         dev2, 2026-04-18, 7d
-    section Architecture
-    Design Pattern Impl     :         arch1, 2026-04-20, 5d
-    Final Documentation     :         arch2, 2026-04-28, 2d
+    section Phase 1: Planning
+    Charter & WBS           :done, 2026-04-10, 2d
+    Risk Matrix             :done, 2026-04-12, 1d
+    section Phase 2: Refactoring
+    Singleton & Factory     :done, 2026-04-13, 3d
+    Adapter & Decorator     :done, 2026-04-16, 4d
+    section Phase 3: Logic
+    Strategy & Observer     :done, 2026-04-20, 5d
+    Command & Undo Logic    :done, 2026-04-25, 3d
+    section Phase 4: Final
+    Documentation (All)      :done, 2026-04-28, 2d
+    Post-Mortem             :done, 2026-04-28, 1d
 ```
+
+### 3. Critical Path
+The critical path involved the **Refactoring of the Cart state** (Singleton) and the **Order lifecycle** (Observer), as these formed the dependency foundation for the subsequent Command and Strategy patterns.

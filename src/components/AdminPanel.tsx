@@ -68,7 +68,7 @@ export function AdminDashboard({ activeView = 'dashboard', onToast }: AdminDashb
   );
 
   const stats = [
-    { label: 'Total Revenue', value: `${data?.totalRevenue?.toLocaleString() || '0'}`, icon: DollarSign, color: 'text-emerald-400' },
+    { label: 'Total Revenue', value: `$${data?.totalRevenue?.toLocaleString() || '0'}`, icon: DollarSign, color: 'text-emerald-400' },
     { label: 'Total Users', value: data?.totalUsers || 0, icon: Users, color: 'text-indigo-400' },
     { label: 'Total Products', value: (Array.isArray(data?.allProducts) ? data.allProducts.length : 0), icon: ShoppingCart, color: 'text-amber-400' },
     { label: 'Pending Approvals', value: data?.pendingApprovals || 0, icon: Package, color: 'text-rose-400' },
@@ -291,7 +291,7 @@ export function AdminDashboard({ activeView = 'dashboard', onToast }: AdminDashb
                    <div className="space-y-6">
                       <div className="space-y-2">
                          <label className="text-xs font-mono uppercase tracking-widest text-slate-500">Service Name</label>
-                         <input type="text" className="input-glass" defaultValue="Sauda Engine" />
+                         <input type="text" className="input-glass" defaultValue="Sauda" />
                       </div>
                       <div className="space-y-2">
                          <label className="text-xs font-mono uppercase tracking-widest text-slate-500">System Domain</label>

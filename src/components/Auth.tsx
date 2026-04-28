@@ -97,7 +97,7 @@ export function Auth({ onLogin }: AuthProps) {
            <div className="w-20 h-20 rounded-[2.5rem] bg-white text-primary flex items-center justify-center mb-6 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
               <ShoppingBag size={36} strokeWidth={2.5} />
            </div>
-           <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent mb-2">Sauda Engine</h1>
+           <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-white via-white to-slate-500 bg-clip-text text-transparent mb-2">Sauda</h1>
            <p className="text-slate-500 text-sm tracking-wider uppercase">Advanced Commerce Cluster v2.4</p>
         </div>
 

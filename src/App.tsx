@@ -7,11 +7,13 @@ import { CustomerPortal } from './components/CustomerPortal';
 import { Checkout } from './components/Checkout';
 import { Auth } from './components/Auth';
 import { Messages } from './components/Messages';
+import { GlobalSearch } from './components/GlobalSearch';
 import { UserRole, Product, CartItem, PaymentProvider } from './types';
 import { api } from './services/api';
 import { Badge } from './components/ui/Common';
 import { X, CheckCircle, Info, AlertTriangle, ShoppingCart as CartIcon, Bell, User as UserIcon, Settings, ChevronLeft } from 'lucide-react';
 import { cn } from './lib/utils';
+import { CartStore } from './server/patterns/creational/cart_singleton';
 
 interface Toast {
   id: string;
@@ -19,13 +21,15 @@ interface Toast {
   type: 'success' | 'info' | 'warning';
 }
 
+const cartStore = CartStore.getInstance();
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null means checking
   const [role, setRole] = useState<UserRole>('customer');
   const [currentUser, setCurrentUser] = useState<{id: string, username: string, email: string} | null>(null);
   const [activeTab, setActiveTab] = useState('catalogue');
   const [collapsed, setCollapsed] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(cartStore.getItems());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showProfile, setShowProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -37,6 +41,14 @@ export default function App() {
     newsletter: false,
     darkMode: true
   });
+
+  // Subscribe to Singleton CartStore
+  useEffect(() => {
+    const unsubscribe = cartStore.subscribe(() => {
+      setCart(cartStore.getItems());
+    });
+    return () => unsubscribe();
+  }, []);
 
   // PERSISTENCE: CHECK LOCALSTORAGE ON MOUNT
   useEffect(() => {
@@ -108,8 +120,8 @@ export default function App() {
       password: (formData.get('password') as string) || undefined
     };
     try {
-      await api.auth.updateProfile(data);
-      const updatedUser = { ...currentUser!, username: data.username };
+      const response = await api.auth.updateProfile(data);
+      const updatedUser = response.user;
       setCurrentUser(updatedUser);
       localStorage.setItem('sauda_user', JSON.stringify(updatedUser));
       addToast('Profile records synchronized', 'success');
@@ -132,25 +144,19 @@ export default function App() {
     await api.auth.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
-    setCart([]);
+    cartStore.clear();
     addToast('Session terminated successfully', 'info');
   };
 
   const addToCart = (product: Product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
+    cartStore.addItem({ ...product, quantity: 1 });
     addToast(`Added ${product.name} to cart`, 'success');
   };
 
   const handleCheckoutComplete = () => {
     addToast(`Payment successful. Order synchronized.`, 'success');
     setActiveTab('orders'); // Go to orders page after checkout
-    setCart([]);
+    cartStore.clear();
   };
 
   if (isAuthenticated === null) return (
@@ -168,21 +174,41 @@ export default function App() {
         <TopNav username={currentUser?.username || 'User'} role={role} onProfileClick={() => setShowProfile(!showProfile)} onNotificationsClick={() => setShowNotifications(!showNotifications)} onSearch={setSearchTerm} hasUnreadNotifications={notifications.some(n => !n.read)} />
         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
            <AnimatePresence mode="wait">
-              {role === 'admin' && (activeTab === 'dashboard' || activeTab === 'settings' || activeTab === 'users' || activeTab === 'approvals') && (
-                <div key="admin-panel"><AdminDashboard activeView={activeTab as any} onToast={addToast} /></div>
-              )}
-              {role === 'seller' && (activeTab === 'dashboard' || activeTab === 'inventory' || activeTab === 'orders') && (
-                <div key="seller-dash"><SellerDashboard activeTab={activeTab as any} onToast={addToast} /></div>
-              )}
-              {role === 'customer' && (
+              {searchTerm.trim().length >= 2 ? (
+                <div key="global-search">
+                  <GlobalSearch 
+                    query={searchTerm} 
+                    onClose={() => setSearchTerm('')} 
+                    onProductClick={(p) => {
+                       setActiveTab('catalogue');
+                       // We can't easily open the modal here without passing state down, 
+                       // but at least we can navigate to catalogue.
+                    }} 
+                    onUserClick={(u) => {
+                       if (role === 'admin') setActiveTab('users');
+                       else addToast(`Interacting with user ${u.username}`, 'info');
+                    }}
+                  />
+                </div>
+              ) : (
                 <>
-                  {activeTab === 'catalogue' && <div key="cat"><CustomerPortal onAddToCart={addToCart} searchTerm={searchTerm} onTabChange={setActiveTab} onToast={addToast} /></div>}
-                  {activeTab === 'orders' && <div key="ord"><CustomerPortal activeTab="orders" searchTerm={searchTerm} onTabChange={setActiveTab} onToast={addToast} /></div>}
-                  {activeTab === 'wishlist' && <div key="wish"><CustomerPortal activeTab="wishlist" searchTerm={searchTerm} onTabChange={setActiveTab} onToast={addToast} /></div>}
-                  {activeTab === 'cart' && <div key="checkout"><Checkout items={cart} onComplete={handleCheckoutComplete} /></div>}
+                  {role === 'admin' && (activeTab === 'dashboard' || activeTab === 'settings' || activeTab === 'users' || activeTab === 'approvals') && (
+                    <div key="admin-panel"><AdminDashboard activeView={activeTab as any} onToast={addToast} /></div>
+                  )}
+                  {role === 'seller' && (activeTab === 'dashboard' || activeTab === 'inventory' || activeTab === 'orders') && (
+                    <div key="seller-dash"><SellerDashboard activeTab={activeTab as any} onToast={addToast} /></div>
+                  )}
+                  {role === 'customer' && (
+                    <>
+                      {activeTab === 'catalogue' && <div key="cat"><CustomerPortal onAddToCart={addToCart} searchTerm={searchTerm} onTabChange={setActiveTab} onToast={addToast} /></div>}
+                      {activeTab === 'orders' && <div key="ord"><CustomerPortal activeTab="orders" searchTerm={searchTerm} onTabChange={setActiveTab} onToast={addToast} /></div>}
+                      {activeTab === 'wishlist' && <div key="wish"><CustomerPortal activeTab="wishlist" searchTerm={searchTerm} onTabChange={setActiveTab} onToast={addToast} /></div>}
+                      {activeTab === 'cart' && <div key="checkout"><Checkout items={cart} onComplete={handleCheckoutComplete} /></div>}
+                    </>
+                  )}
+                  {activeTab === 'messages' && <div key="messages"><Messages /></div>}
                 </>
               )}
-              {activeTab === 'messages' && <div key="messages"><Messages /></div>}
            </AnimatePresence>
         </div>
       </main>
@@ -208,6 +234,7 @@ export default function App() {
                          {(currentUser?.username || 'U').charAt(0)}
                        </div>
                        <h3 className="text-xl font-bold">{currentUser?.username || 'User'}</h3>
+                       <h4 className="text-xs font-mono text-slate-500 tracking-tighter uppercase mb-4">Node ID: {currentUser?.id}</h4>
                        <p className="text-slate-400 text-sm">{currentUser?.email || 'user@sauda.io'}</p>
                        <Badge variant="info" className="mt-4">{role.toUpperCase()} ACCOUNT</Badge>
                     </div>

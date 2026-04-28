@@ -61,6 +61,8 @@ export function Messages() {
     (selectedContact && (m.fromId === selectedContact.id || m.toId === selectedContact.id))
   );
 
+  const currentUser = JSON.parse(localStorage.getItem('sauda_user') || '{}');
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -162,7 +164,7 @@ export function Messages() {
                       <p className="font-mono text-sm">NO DATA DETECTED IN CHANNEL</p>
                    </div>
                 ) : filteredMessages.map((m) => {
-                   const isMe = m.fromId !== selectedContact.id;
+                   const isMe = m.fromId === currentUser.id;
                    return (
                      <div key={m.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
                         <div className={cn(

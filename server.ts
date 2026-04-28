@@ -6,9 +6,12 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import { PricingEngine, StandardPricingStrategy, VIPPricingStrategy, SeasonalSalePricingStrategy, BulkOrderPricingStrategy } from './src/server/patterns/behavioral/pricing_strategy.js';
+import { CurrencyAdapterFactory } from './src/server/patterns/structural/currency_adapter.js';
 import { InvoiceFactory } from './src/server/patterns/creational/invoice_factory.js';
 import { getPaymentGateway } from './src/server/patterns/structural/payment_adapter.js';
 import { SaudaOrderSubject, EmailNotifier, SMSNotifier, LogNotifier } from './src/server/patterns/behavioral/order_observer.js';
+import { ReviewSubject, SellerReviewNotifier, AdminAuditLogger, RatingAggregator } from './src/server/patterns/behavioral/review_observer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'sauda-engine-super-secret-key';
@@ -147,6 +150,13 @@ async function startServer() {
   const messages: any[] = [];
   const notifications: any[] = [];
 
+  // [PATTERN] Behavioral: Observer (Global Review Subject)
+  const serverReviewSubject = new ReviewSubject();
+  const serverRatingAggregator = new RatingAggregator();
+  serverReviewSubject.attach(new SellerReviewNotifier());
+  serverReviewSubject.attach(new AdminAuditLogger());
+  serverReviewSubject.attach(serverRatingAggregator);
+
   // --- AUTH ROUTES ---
   app.post('/api/auth/register', async (req, res) => {
     const { username, email, password, role = 'customer' } = req.body;
@@ -197,10 +207,50 @@ async function startServer() {
   app.post('/api/products/:id/review', authenticate, (req: any, res) => {
     const p = products.find(prod => prod.id === req.params.id);
     if (!p) return res.status(404).json({ error: 'Not found' });
-    const review = { id: String(Date.now()), userId: req.user.id, username: req.user.email.split('@')[0], ...req.body, createdAt: new Date().toISOString() };
+
+    // Requirement: only users who purchased the product can leave a review
+    const hasPurchased = orders.some(o => 
+      o.customerId === req.user.id && 
+      o.status === 'delivered' && 
+      o.items.some((item: any) => item.id === req.params.id)
+    );
+
+    if (!hasPurchased && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Procurement verification failed: Purchase required for asset verification (review).' });
+    }
+
+    const review = { 
+      id: String(Date.now()), 
+      userId: req.user.id, 
+      username: req.user.username || req.user.email.split('@')[0], 
+      rating: req.body.rating,
+      comment: req.body.comment, 
+      createdAt: new Date().toISOString() 
+    };
+
     p.reviews = p.reviews || [];
     p.reviews.push(review);
+
+    // [PATTERN] Behavioral: Observer
+    serverReviewSubject.notify({
+      productId: p.id,
+      rating: req.body.rating,
+      comment: req.body.comment,
+      customerName: review.username,
+      timestamp: review.createdAt
+    });
+
+    // Update product rating based on aggregator
+    p.rating = serverRatingAggregator.getAverage(p.id);
+
     res.json(review);
+  });
+
+  app.delete('/api/seller/products/:id', authenticate, authorize(['seller']), (req: any, res) => {
+    const idx = products.findIndex(prod => prod.id === req.params.id && prod.sellerId === req.user.id);
+    if (idx === -1) return res.status(404).json({ error: 'Asset not found or access denied.' });
+    products.splice(idx, 1);
+    res.json({ success: true });
   });
 
   // --- ORDERS ---
@@ -238,13 +288,26 @@ async function startServer() {
     const { items, totalAmount, paymentMethod } = req.body;
     // Multi-seller logic: simplify to first seller in items for now, or just handle multiple
     const sellerId = items?.[0]?.sellerId || '2';
+    // [PATTERN] Behavioral: Strategy (Calculate dynamic price/discounts)
+    const engine = new PricingEngine(new StandardPricingStrategy());
+    if (totalAmount > 3000) {
+      engine.setStrategy(new VIPPricingStrategy());
+    } else if (totalAmount > 1000) {
+      engine.setStrategy(new BulkOrderPricingStrategy());
+    }
+    
+    const calculation = engine.computeTotal(totalAmount, 1);
+    const finalAmount = calculation.total;
+    const appliedStrategy = calculation.strategyName;
+
     const order = {
       id: String(orders.length + 1),
       customerId: req.user.id,
       buyerName: req.user.username || req.user.email.split('@')[0],
       sellerId,
       status: 'pending',
-      totalAmount,
+      totalAmount: finalAmount,
+      appliedDiscount: appliedStrategy,
       paymentMethod,
       items: (items || []).map((i: any) => ({ ...i, imageUrl: products.find(p => p.id === i.id)?.imageUrl })),
       createdAt: new Date().toISOString()
@@ -461,6 +524,32 @@ async function startServer() {
     const n = notifications.find(notif => notif.id === req.params.id);
     if (n) n.read = true;
     res.json({ success: true });
+  });
+
+  // --- SEARCH ---
+  app.get('/api/search', (req, res) => {
+    const q = (req.query.q as string || '').toLowerCase();
+    if (!q) return res.json({ products: [], users: [] });
+
+    const matchedProducts = products.filter(p => 
+      p.isApproved && (
+        p.name.toLowerCase().includes(q) || 
+        p.description.toLowerCase().includes(q) || 
+        p.category.toLowerCase().includes(q)
+      )
+    );
+
+    const matchedUsers = users.filter(u => 
+      u.username.toLowerCase().includes(q) || 
+      u.role.toLowerCase().includes(q)
+    ).map(({ password, ...u }) => u);
+
+    res.json({
+      products: matchedProducts,
+      users: matchedUsers,
+      // Add other entities if applicable (protocols, etc.)
+      protocols: [] 
+    });
   });
 
   // Vite middleware

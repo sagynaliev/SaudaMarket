@@ -40,6 +40,25 @@ classDiagram
     PaymentGateway <|-- StripeAdapter
     PaymentGateway <|-- PayPalAdapter
     
+    %% Strategy Pattern (Pricing)
+    class PricingStrategy {
+        <<interface>>
+        +calculatePrice(originalPrice)
+    }
+    class StandardPricing { +calculatePrice(originalPrice) }
+    class SeasonalDiscount { +calculatePrice(originalPrice) }
+    class LoyaltyDiscount { +calculatePrice(originalPrice) }
+    class PriceCalculator {
+        -strategy: PricingStrategy
+        +setStrategy(strategy)
+        +calculate(price)
+    }
+    PricingStrategy <|-- StandardPricing
+    PricingStrategy <|-- SeasonalDiscount
+    PricingStrategy <|-- LoyaltyDiscount
+    PriceCalculator --> PricingStrategy
+    Order ..> PriceCalculator : uses for total
+    
     %% Observer Pattern
     class OrderObserver {
         <<interface>>

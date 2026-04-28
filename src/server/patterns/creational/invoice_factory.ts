@@ -16,7 +16,7 @@ export class HTMLInvoice extends Invoice {
       <html>
         <body style="font-family: sans-serif; background: #f4f4f4; padding: 40px;">
           <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1)">
-            <h1 style="color: #6366f1">Sauda Engine Invoice</h1>
+            <h1 style="color: #6366f1">Sauda Invoice</h1>
             <hr />
             <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Status:</strong> ${order.status.toUpperCase()}</p>
@@ -33,7 +33,7 @@ export class JSONInvoice extends Invoice {
   generate(order: Order): string {
     return JSON.stringify({
       invoice: {
-        store: "Sauda Engine",
+        store: "Sauda",
         order_id: order.id,
         total: order.totalAmount,
         currency: "KZT",

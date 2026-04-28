@@ -19,6 +19,7 @@ export interface Product {
   imageUrl: string;
   isApproved: boolean;
   rating: number;
+  reviews?: any[];
   weight?: number;
   isDigital?: boolean;
   fileSize?: string;
