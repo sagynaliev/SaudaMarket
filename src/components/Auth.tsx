@@ -12,7 +12,7 @@ interface AuthProps {
 export function Auth({ onLogin }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgot, setIsForgot] = useState(false);
-  const [role, setRole] = useState<'customer' | 'seller' | 'admin'>('customer');
+  const [role, setRole] = useState<'customer' | 'seller'>('customer');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -122,8 +122,8 @@ export function Auth({ onLogin }: AuthProps) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div className="space-y-4">
-                 <div className="grid grid-cols-3 gap-2">
-                    {['customer', 'seller', 'admin'].map((r) => (
+                 <div className="grid grid-cols-2 gap-2">
+                    {['customer', 'seller'].map((r) => (
                       <button 
                         key={r}
                         type="button" 

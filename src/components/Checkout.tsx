@@ -7,8 +7,12 @@ import { api } from '../services/api';
 import { cn } from '../lib/utils';
 import { resolvePricingStrategy, PricingEngine } from '../server/patterns/behavioral/pricing_strategy';
 import { CurrencyAdapterFactory } from '../server/patterns/structural/currency_adapter';
+import { CartStore } from '../server/patterns/creational/cart_singleton';
+import { Trash2, Minus, Plus } from 'lucide-react';
 
 import { APP_CONFIG } from '../constants';
+
+const cartStore = CartStore.getInstance();
 
 interface CheckoutProps {
   items: CartItem[];
@@ -289,7 +293,15 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
 
         <div className="space-y-8">
            <GlassCard variant="dark" className="p-8 border-accent/20">
-              <h3 className="font-bold mb-6 text-sm uppercase tracking-widest text-slate-500">Manifest Summary</h3>
+              <div className="flex items-center justify-between mb-6">
+                 <h3 className="font-bold text-sm uppercase tracking-widest text-slate-500">Manifest Summary</h3>
+                 <button 
+                   onClick={() => cartStore.clear()}
+                   className="text-[10px] text-rose-500 font-bold hover:underline"
+                 >
+                    Clear All
+                 </button>
+              </div>
 
               {/* Currency Selector (Adapter Pattern) */}
               <div className="mb-6 pb-6 border-b border-white/5">
@@ -367,12 +379,43 @@ export function Checkout({ items, onComplete }: CheckoutProps) {
 
               <div className="space-y-4 mb-8">
                  {items.map(item => (
-                    <div key={item.id} className="flex justify-between items-start gap-4">
-                       <div className="flex-1">
-                          <p className="text-sm font-medium text-white line-clamp-1">{item.name}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{item.quantity} x {formatPrice(item.price)}</p>
+                    <div key={item.id} className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group">
+                       <div className="flex justify-between items-start gap-4">
+                          <div className="flex-1">
+                             <p className="text-sm font-medium text-white line-clamp-1">{item.name}</p>
+                             <p className="text-xs text-slate-500 mt-0.5">{formatPrice(item.price)} per unit</p>
+                          </div>
+                          <p className="text-sm font-bold text-slate-200">{formatPrice(item.price * item.quantity)}</p>
                        </div>
-                       <p className="text-sm font-bold text-slate-200">{formatPrice(item.price * item.quantity)}</p>
+                       
+                       <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-1 bg-black/20 rounded-xl p-1 border border-white/5">
+                             <button 
+                                type="button"
+                                onClick={() => cartStore.updateQuantity(item.id, item.quantity - 1)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 transition-colors"
+                             >
+                                <Minus size={14} />
+                             </button>
+                             <span className="w-8 text-center text-xs font-bold font-mono">{item.quantity}</span>
+                             <button 
+                                type="button"
+                                onClick={() => cartStore.updateQuantity(item.id, item.quantity + 1)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 transition-colors"
+                             >
+                                <Plus size={14} />
+                             </button>
+                          </div>
+                          
+                          <button 
+                             type="button"
+                             onClick={() => cartStore.removeItem(item.id)}
+                             className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors"
+                             title="Remove item"
+                          >
+                             <Trash2 size={16} />
+                          </button>
+                       </div>
                     </div>
                  ))}
               </div>
