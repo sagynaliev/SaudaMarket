@@ -553,32 +553,6 @@ async function startServer() {
     });
   });
 
-  // --- SEARCH ---
-  app.get('/api/search', (req, res) => {
-    const q = (req.query.q as string || '').toLowerCase();
-    if (!q) return res.json({ products: [], users: [] });
-
-    const matchedProducts = products.filter(p => 
-      p.isApproved && (
-        p.name.toLowerCase().includes(q) || 
-        p.description.toLowerCase().includes(q) || 
-        p.category.toLowerCase().includes(q)
-      )
-    );
-
-    const matchedUsers = users.filter(u => 
-      u.username.toLowerCase().includes(q) || 
-      u.role.toLowerCase().includes(q)
-    ).map(({ password, ...u }) => u);
-
-    res.json({
-      products: matchedProducts,
-      users: matchedUsers,
-      // Add other entities if applicable (protocols, etc.)
-      protocols: [] 
-    });
-  });
-
   // Vite middleware
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
